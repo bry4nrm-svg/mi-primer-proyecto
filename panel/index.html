@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel del Negocio</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1d2330; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #16a34a; --accent-2: #dcfce7; --warn: #d97706; --warn-2: #fef3c7; --bad: #dc2626; --bad-2: #fee2e2;
+    --blue: #2563eb; --blue-2: #dbeafe;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #181b22; --text: #e8eaef; --muted: #9aa1ad; --line: #2a2f3a;
+      --accent: #22c55e; --accent-2: #12301d; --warn: #f59e0b; --warn-2: #3a2a0c; --bad: #f87171; --bad-2: #3a1515;
+      --blue: #60a5fa; --blue-2: #13243f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 17px; margin: 0; flex: 1; }
+  nav { display: flex; gap: 6px; padding: 10px 16px; overflow-x: auto; background: var(--card); border-bottom: 1px solid var(--line); }
+  nav button { white-space: nowrap; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  button, .btn { border: 1px solid var(--line); background: var(--card); color: var(--text); padding: 7px 12px; border-radius: 8px; cursor: pointer; font: inherit; }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.small { padding: 4px 9px; font-size: 13px; }
+  input, textarea, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font: inherit; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .stat .n { font-size: 26px; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .between { justify-content: space-between; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .t-nuevo, .t-confirmada { background: var(--blue-2); color: var(--blue); }
+  .t-preparando, .t-en_camino, .t-pausado { background: var(--warn-2); color: var(--warn); }
+  .t-entregado, .t-completada, .t-bot { background: var(--accent-2); color: var(--accent); }
+  .t-cancelado, .t-cancelada, .t-no_asistio { background: var(--bad-2); color: var(--bad); }
+  ul.items { margin: 6px 0; padding-left: 18px; }
+  #login { max-width: 360px; margin: 12vh auto; }
+  #login .card { display: grid; gap: 10px; }
+  .hidden { display: none !important; }
+  dialog { border: none; border-radius: 14px; padding: 0; width: min(560px, 94vw); background: var(--card); color: var(--text); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .chat { max-height: 60vh; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+  .msg { max-width: 80%; padding: 8px 11px; border-radius: 10px; white-space: pre-wrap; font-size: 14px; }
+  .msg.entrante { background: var(--card); align-self: flex-start; border: 1px solid var(--line); }
+  .msg.bot, .msg.humano { background: var(--accent-2); align-self: flex-end; }
+  .msg small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .empty { text-align: center; color: var(--muted); padding: 30px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  td input { padding: 6px 8px; }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login" class="hidden">
+  <div class="card">
+    <h2 style="margin:0">Panel de tu negocio</h2>
+    <p class="muted" style="margin:0">Pedidos, citas y clientes que llegan por WhatsApp.</p>
+    <input id="email" type="email" placeholder="Correo" autocomplete="username">
+    <input id="password" type="password" placeholder="Contrasena" autocomplete="current-password">
+    <button class="primary" onclick="login()">Entrar</button>
+    <div id="loginError" class="muted" style="color:var(--bad)"></div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<section id="app" class="hidden">
+  <header>
+    <h1 id="negocioNombre">Mi negocio</h1>
+    <span id="plan" class="tag t-bot"></span>
+    <button class="small" onclick="logout()">Salir</button>
+  </header>
+  <nav id="tabs"></nav>
+  <main id="view"></main>
+</section>
+
+<dialog id="dlg"><div id="dlgBody"></div></dialog>
+<div id="toast"></div>
+
+<script>
+// ------------------------------------------------------------------
+// CONFIG: si el panel se sirve en el mismo dominio que la API (Caddy), deja esto asi.
+const API_URL = '/webhook/panel-api';
+const REFRESCO_SEG = 20;
+// ------------------------------------------------------------------
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let token = null, negocio = {}, tab = 'resumen', ultimoPedido = null, timer = null;
+
+try { token = localStorage.getItem('panel_token'); } catch (e) {}
+
+async function api(accion, datos = {}) {
+  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, accion, datos }) });
+  const j = await r.json();
+  if (j.error === 'sesion_expirada') { logout(); throw new Error('Sesion expirada'); }
+  return j;
+}
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
+function money(v) { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: negocio.moneda || 'MXN' }).format(v || 0); }
+function beep() {
+  try { const a = new AudioContext(), o = a.createOscillator(); o.frequency.value = 880; o.connect(a.destination); o.start(); setTimeout(() => o.stop(), 250); } catch (e) {}
+}
+
+async function login() {
+  $('#loginError').textContent = '';
+  const j = await api('login', { email: $('#email').value, password: $('#password').value });
+  if (!j.ok) { $('#loginError').textContent = j.error; return; }
+  token = j.token; try { localStorage.setItem('panel_token', token); } catch (e) {}
+  start();
+}
+function logout() {
+  token = null; try { localStorage.removeItem('panel_token'); } catch (e) {}
+  clearInterval(timer); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+}
+
+async function start() {
+  const r = await api('resumen');
+  if (!r.ok) return;
+  negocio = r.negocio;
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#negocioNombre').textContent = negocio.nombre;
+  $('#plan').textContent = 'Plan ' + negocio.plan;
+  const tabs = [['resumen', 'Resumen']];
+  if (['pedidos', 'ambos'].includes(negocio.tipo)) tabs.push(['pedidos', 'Pedidos']);
+  if (['citas', 'ambos'].includes(negocio.tipo)) tabs.push(['citas', 'Agenda']);
+  tabs.push(['clientes', 'Clientes'], ['catalogo', negocio.tipo === 'citas' ? 'Servicios' : 'Menu / Productos']);
+  $('#tabs').innerHTML = tabs.map(([k, l]) => `<button data-t="${k}" onclick="go('${k}')">${l}</button>`).join('');
+  go(tab);
+  clearInterval(timer);
+  timer = setInterval(() => { if (['resumen', 'pedidos', 'citas'].includes(tab) && !$('#dlg').open) go(tab, true); }, REFRESCO_SEG * 1000);
+}
+
+function go(t, silencioso) {
+  tab = t;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (!silencioso) $('#view').innerHTML = '<div class="empty">Cargando...</div>';
+  ({ resumen: vResumen, pedidos: vPedidos, citas: vCitas, clientes: vClientes, catalogo: vCatalogo })[t]();
+}
+
+// ---------------- RESUMEN ----------------
+async function vResumen() {
+  const r = await api('resumen');
+  const s = (n, l) => `<div class="card stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  const cards = [];
+  if (['pedidos', 'ambos'].includes(negocio.tipo)) cards.push(s(r.pedidos_hoy, 'Pedidos hoy'), s(money(r.ventas_hoy), 'Ventas hoy'), s(r.pedidos_pendientes, 'Pedidos pendientes'));
+  if (['citas', 'ambos'].includes(negocio.tipo)) cards.push(s(r.citas_hoy, 'Citas hoy'));
+  cards.push(s(r.clientes_total, 'Clientes'), s(r.esperando_humano, 'Esperan a una persona'),
+             s(`${r.mensajes_mes}<span class="muted"> / ${r.limite_mensajes}</span>`, 'Respuestas del bot este mes'));
+  $('#view').innerHTML = `<p class="muted">Hola ${esc(r.usuario || '')} 👋 se actualiza solo cada ${REFRESCO_SEG} s.</p><div class="grid">${cards.join('')}</div>`
+    + (r.esperando_humano ? `<div class="card" style="border-color:var(--warn)">⚠️ Tienes ${r.esperando_humano} cliente(s) esperando atencion humana. <button class="small" onclick="go('clientes')">Ver</button></div>` : '');
+}
+
+// ---------------- PEDIDOS ----------------
+const SIG = { nuevo: ['preparando', 'Preparar'], preparando: ['en_camino', 'En camino'], en_camino: ['entregado', 'Entregado'] };
+let filtroPedido = 'activos';
+async function vPedidos() {
+  const r = await api('pedidos');
+  if (ultimoPedido !== null && r.pedidos[0] && r.pedidos[0].id > ultimoPedido) { beep(); toast('🔔 Pedido nuevo'); }
+  ultimoPedido = r.pedidos[0]?.id ?? 0;
+  const lista = r.pedidos.filter(p => filtroPedido === 'todos' || ['nuevo', 'preparando', 'en_camino'].includes(p.estado));
+  $('#view').innerHTML = `<div class="row" style="margin-bottom:12px">
+      <button class="${filtroPedido === 'activos' ? 'on' : ''}" onclick="filtroPedido='activos';go('pedidos')">Activos</button>
+      <button class="${filtroPedido === 'todos' ? 'on' : ''}" onclick="filtroPedido='todos';go('pedidos')">Todos</button></div>`
+    + (lista.length ? lista.map(p => `
+    <div class="card">
+      <div class="row between"><strong>#${p.id} · ${esc(p.cliente || p.telefono)}</strong><span class="tag t-${p.estado}">${p.estado.replace('_', ' ')}</span></div>
+      <div class="muted">${p.creado_en} · ${p.entrega === 'domicilio' ? '🛵 ' + esc(p.direccion) : '🏪 Recoger'} · 📱 ${esc(p.telefono)}</div>
+      <ul class="items">${p.items.map(i => `<li>${i.cantidad} × ${esc(i.nombre)} ${i.nota ? `<em class="muted">(${esc(i.nota)})</em>` : ''} — ${money(i.subtotal)}</li>`).join('')}</ul>
+      ${p.notas ? `<div class="muted">📝 ${esc(p.notas)}</div>` : ''}
+      <div class="row between" style="margin-top:8px"><strong>Total ${money(p.total)}</strong>
+        <div class="row">
+          ${SIG[p.estado] ? `<button class="small primary" onclick="estadoPedido(${p.id},'${SIG[p.estado][0]}')">${SIG[p.estado][1]}</button>` : ''}
+          ${['nuevo', 'preparando'].includes(p.estado) ? `<button class="small" onclick="estadoPedido(${p.id},'cancelado')">Cancelar</button>` : ''}
+        </div></div>
+    </div>`).join('') : '<div class="empty">Sin pedidos por ahora 🍕</div>');
+}
+async function estadoPedido(id, estado) { await api('pedido_estado', { id, estado }); toast('Actualizado'); go('pedidos'); }
+
+// ---------------- CITAS ----------------
+async function vCitas() {
+  const r = await api('citas');
+  const porDia = {};
+  r.citas.forEach(c => (porDia[c.inicio.slice(0, 10)] ||= []).push(c));
+  const fmt = (d) => new Date(d + 'T12:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#view').innerHTML = `<p class="muted">Proximos 14 dias</p>` + (Object.keys(porDia).length ? Object.entries(porDia).map(([d, cs]) => `
+    <div class="card"><strong style="text-transform:capitalize">${fmt(d)}</strong>
+      <table>${cs.map(c => `<tr>
+        <td style="width:95px"><strong>${c.inicio.slice(11)}</strong><div class="muted">a ${c.fin}</div></td>
+        <td>${esc(c.cliente || 'Sin nombre')}<div class="muted">${esc(c.servicio || '')} · 📱 ${esc(c.telefono || '')}${c.notas ? ' · ' + esc(c.notas) : ''}</div></td>
+        <td style="text-align:right"><span class="tag t-${c.estado}">${c.estado.replace('_', ' ')}</span>
+          ${c.estado === 'confirmada' ? `<div class="row" style="justify-content:flex-end;margin-top:4px">
+            <button class="small" onclick="estadoCita(${c.id},'completada')">✓</button>
+            <button class="small" onclick="estadoCita(${c.id},'no_asistio')">No vino</button>
+            <button class="small" onclick="estadoCita(${c.id},'cancelada')">✕</button></div>` : ''}</td>
+      </tr>`).join('')}</table></div>`).join('') : '<div class="empty">No hay citas agendadas 📅</div>');
+}
+async function estadoCita(id, estado) { await api('cita_estado', { id, estado }); toast('Actualizado'); go('citas'); }
+
+// ---------------- CLIENTES ----------------
+let clientesCache = [];
+async function vClientes(buscar) {
+  const r = await api('clientes', buscar ? { buscar } : {});
+  clientesCache = r.clientes;
+  $('#view').innerHTML = `<div class="row" style="margin-bottom:12px"><input id="buscar" placeholder="Buscar por nombre o telefono" value="${esc(buscar || '')}"
+      onkeydown="if(event.key==='Enter')vClientes(this.value)"></div>`
+    + (r.clientes.length ? `<div class="card" style="padding:4px 10px"><table>${r.clientes.map(c => `<tr>
+      <td>${esc(c.nombre || 'Sin nombre')}<div class="muted">📱 ${esc(c.telefono)} · ultimo msj ${c.ultimo_msg}</div>
+        <div class="muted">${c.pedidos ? `${c.pedidos} pedidos · ${money(c.gastado)}` : ''} ${c.citas ? `${c.citas} citas` : ''}</div></td>
+      <td style="text-align:right">
+        <span class="tag ${c.bot_pausado ? 't-pausado' : 't-bot'}">${c.bot_pausado ? 'Humano' : 'Bot'}</span>
+        <div class="row" style="justify-content:flex-end;margin-top:4px"><button class="small" onclick="verCliente(${c.id})">Abrir</button></div></td>
+    </tr>`).join('')}</table></div>` : '<div class="empty">Aun no hay clientes</div>');
+}
+async function verCliente(id) {
+  const c = clientesCache.find(x => x.id === id);
+  const r = await api('conversacion', { cliente_id: id });
+  $('#dlgBody').innerHTML = `
+    <div style="padding:14px" class="row between"><div><strong>${esc(c.nombre || c.telefono)}</strong><div class="muted">📱 ${esc(c.telefono)}</div></div>
+      <button class="small" onclick="dlg.close()">Cerrar</button></div>
+    <div class="chat" id="chat">${r.mensajes.map(m => `<div class="msg ${m.direccion}">${esc(m.texto)}<small>${m.direccion === 'bot' ? '🤖 ' : m.direccion === 'humano' ? '👤 ' : ''}${m.hora}</small></div>`).join('') || '<div class="empty">Sin mensajes</div>'}</div>
+    <div style="padding:14px;display:grid;gap:8px">
+      <input id="cNombre" value="${esc(c.nombre || '')}" placeholder="Nombre">
+      <textarea id="cNotas" rows="2" placeholder="Notas internas">${esc(c.notas || '')}</textarea>
+      <div class="row between">
+        <button onclick="guardarCliente(${id}, ${!c.bot_pausado})">${c.bot_pausado ? '🤖 Reactivar bot' : '👤 Atender yo (pausar bot)'}</button>
+        <button class="primary" onclick="guardarCliente(${id})">Guardar</button></div>
+      <a class="btn" style="text-align:center;text-decoration:none" target="_blank" href="https://wa.me/${esc(c.telefono)}">Abrir en WhatsApp</a>
+    </div>`;
+  dlg.showModal();
+  const ch = $('#chat'); ch.scrollTop = ch.scrollHeight;
+}
+async function guardarCliente(id, pausar) {
+  const datos = { id, nombre: $('#cNombre').value, notas: $('#cNotas').value };
+  if (pausar !== undefined) datos.bot_pausado = pausar;
+  await api('cliente_editar', datos); dlg.close(); toast('Guardado'); vClientes($('#buscar')?.value);
+}
+
+// ---------------- CATALOGO ----------------
+async function vCatalogo() {
+  const r = await api('catalogo');
+  $('#view').innerHTML = `<div class="card" style="padding:4px 10px"><table>
+    <tr><th>Nombre</th><th style="width:110px">Precio</th><th style="width:80px">Activo</th><th style="width:70px"></th></tr>
+    ${r.catalogo.map(i => `<tr>
+      <td><input id="n${i.id}" value="${esc(i.nombre)}"><div class="muted">${esc(i.categoria)}</div></td>
+      <td><input id="p${i.id}" type="number" step="0.01" value="${i.precio}"></td>
+      <td><input id="a${i.id}" type="checkbox" ${i.activo ? 'checked' : ''} style="width:auto"></td>
+      <td><button class="small" onclick="guardarItem(${i.id})">Guardar</button></td></tr>`).join('')}
+  </table></div>
+  <div class="card" style="display:grid;gap:8px"><strong>Agregar</strong>
+    <div class="row"><input id="nuevoCat" placeholder="Categoria" style="flex:1"><input id="nuevoNom" placeholder="Nombre" style="flex:2"><input id="nuevoPre" type="number" placeholder="Precio" style="flex:1"></div>
+    <input id="nuevoDesc" placeholder="Descripcion (opcional)">
+    <button class="primary" onclick="nuevoItem()">Agregar</button></div>
+  <p class="muted">Los cambios los usa el bot desde el siguiente mensaje.</p>`;
+}
+async function guardarItem(id) {
+  await api('catalogo_guardar', { id, nombre: $('#n' + id).value, precio: $('#p' + id).value, activo: $('#a' + id).checked });
+  toast('Guardado');
+}
+async function nuevoItem() {
+  if (!$('#nuevoNom').value) return toast('Falta el nombre');
+  await api('catalogo_guardar', { categoria: $('#nuevoCat').value || 'General', nombre: $('#nuevoNom').value,
+    precio: $('#nuevoPre').value || 0, descripcion: $('#nuevoDesc').value });
+  toast('Agregado'); go('catalogo');
+}
+
+const dlg = $('#dlg');
+$('#password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+token ? start().catch(logout) : logout();
+</script>
+</body>
+</html>

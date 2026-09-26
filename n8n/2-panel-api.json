@@ -1,0 +1,91 @@
+{
+  "name": "Chatbot Madre - API del Panel",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "panel-api",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "9af511d8-e822-4943-8a52-c86b95cf9fa1",
+      "name": "Panel API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "b07c950c-bb06-4f19-b347-85e2fdb54149"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT fn_panel(NULLIF($1, ''), $2, $3::jsonb) AS r;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.token || '', $json.body.accion || '', JSON.stringify($json.body.datos || {})] }}"
+        }
+      },
+      "id": "a0bd2a62-f2e7-4763-b105-9150a01a18d6",
+      "name": "Ejecutar Accion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CAMBIAR",
+          "name": "Postgres Chatbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.r) }}",
+        "options": {}
+      },
+      "id": "185c37ce-9fe6-44c0-b109-169d0bb253a4",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Panel API": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Accion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Accion": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}
