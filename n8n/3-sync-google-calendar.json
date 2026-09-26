@@ -1,0 +1,139 @@
+{
+  "name": "Chatbot Madre - Sync Google Calendar (opcional)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "fc87076f-8bc0-44e0-8b3a-5c080f33d884",
+      "name": "Cada 2 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ci.id, n.google_calendar_id, n.zona_horaria,\n       to_char(ci.inicio AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS inicio,\n       to_char(ci.fin    AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS fin,\n       COALESCE(ca.nombre, 'Cita') || ' - ' || COALESCE(cl.nombre, cl.telefono) AS titulo,\n       'Tel: ' || cl.telefono || COALESCE(E'\\nNotas: ' || ci.notas, '') || E'\\n(Agendada por el chatbot)' AS descripcion\n  FROM citas ci JOIN negocios n ON n.id = ci.negocio_id\n  LEFT JOIN clientes cl ON cl.id = ci.cliente_id\n  LEFT JOIN catalogo ca ON ca.id = ci.servicio_id\n WHERE ci.gcal_event_id IS NULL AND ci.estado = 'confirmada'\n   AND n.google_calendar_id IS NOT NULL AND ci.inicio > now()\n LIMIT 50;",
+        "options": {}
+      },
+      "id": "87e0b7c5-aafd-420c-8f33-6e62b750d897",
+      "name": "Citas sin sincronizar",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CAMBIAR",
+          "name": "Postgres Chatbot"
+        }
+      },
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.google_calendar_id }}"
+        },
+        "start": "={{ $json.inicio }}",
+        "end": "={{ $json.fin }}",
+        "additionalFields": {
+          "summary": "={{ $json.titulo }}",
+          "description": "={{ $json.descripcion }}"
+        }
+      },
+      "id": "70dab5c5-e853-4293-b509-87d60da16a07",
+      "name": "Crear Evento",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "CAMBIAR",
+          "name": "Google Calendar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE citas SET gcal_event_id = $1 WHERE id = $2;",
+        "options": {
+          "queryReplacement": "={{ [$json.id, $('Citas sin sincronizar').item.json.id] }}"
+        }
+      },
+      "id": "632f5412-3ae2-4734-90d7-3504d107ebc1",
+      "name": "Marcar Sincronizada",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CAMBIAR",
+          "name": "Postgres Chatbot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cada 2 minutos": {
+      "main": [
+        [
+          {
+            "node": "Citas sin sincronizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Citas sin sincronizar": {
+      "main": [
+        [
+          {
+            "node": "Crear Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Evento": {
+      "main": [
+        [
+          {
+            "node": "Marcar Sincronizada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "pinData": {}
+}
